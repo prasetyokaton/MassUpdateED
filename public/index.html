@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>Page Title</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script
+        src="https://code.jquery.com/jquery-3.3.1.js"
+        integrity="sha256-2Kok7MbOyxpgUVvAk/HJ2jigOSYS2auK4Pfzbm7uH60="
+        crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.22.2/moment.min.js"></script>
+</head>
+<body>
+    <input type="text" name="username" />
+    <input type="password" name="password"/>
+    <button id="loginBtn">LOGIN</button>
+    <hr />
+
+    Transportation Type 
+    <select name="transportType">
+        <option>Car</option>
+        <option>Motorcycle</option>
+        <option>Public</option>
+        <option>Taxi</option>
+    </select>
+    <span> - </span>
+
+    Pulang Pergi
+    <select name="pp" class="aform">
+        <option>N</option>
+        <option>Y</option>
+    </select>
+    <span> - </span>
+
+    Date From<input type="date" name="dateFrom"></input>
+    <span> - </span>
+    Date To<input type="date" name="dateTo"></input>
+    
+    
+    <button id="btnOpenTransport">Open Transport Form</button>
+    <button id="btnAddExpenses">Add Expenses</button>
+    <button id="btnSaveExpenses">Save Expenses</button>
+    <button id="btnSaveDraft">Save Draft</button>
+    <br> <br>
+    <hr />
+    <div id="result"></div>
+    <!-- <iframe name="employee-iframe" src="https://ed.ibm-jti.com/employee/personallogin.asp"></iframe> -->
+</body>
+<script>
+    $(document).ready(function() {
+        let cookie = null;
+        let formID = null;
+
+        $("#loginBtn").click(function(e) {
+            var username = $("[name=username]").val();
+            var password = $("[name=password]").val();
+
+            $.ajax({
+                url: "http://localhost:3000/login",
+                method: 'POST',
+                data: {username: username, password: password, okay: "ya"},
+                success: function(data) {
+                    cookie = data.split(";")[0];
+                    alert("login success");
+                }
+            })
+        });
+
+        $("#btnOpenTransport").click(function(e) {
+            $.ajax({
+                url: 'http://localhost:3000/openTransportForm',
+                method: 'POST',
+                data: { cookie },
+                success: function(data) {
+                    formID = data.formID;
+                    $("#result").html(data.html);
+                }
+            });
+        });
+
+        $("#btnAddExpenses").click(function(e) {
+            let transportType = $("[name=transportType]").val();
+            let pp = $("[name=pp]").val();
+            let dateFrom = $("[name=dateFrom]").val();
+            let dateTo = $("[name=dateTo]").val();
+            
+            let splittedDateFrom = dateFrom.split("-");
+            let dateFromMoment = moment([splittedDateFrom[0], splittedDateFrom[1], splittedDateFrom[2]]);
+
+            let splitteddateTo = dateTo.split("-");
+            let dateToMoment = moment([splitteddateTo[0], splitteddateTo[1], splitteddateTo[2]]);
+
+            let dateDiff = Math.abs(dateFromMoment.diff(dateToMoment, 'days'));
+            
+            let promises = [];
+            for(let i=0; i<=dateDiff; i++) {
+                promises.push(new Promise((resolve, reject) => {
+                    $.ajax({
+                        url: 'http://localhost:3000/addExpenses',
+                        method: 'POST',
+                        data: {
+                            cookie,
+                            s1: (function() {
+                                /* let temp = [...splittedDateFrom];
+                                temp[2] = (parseInt(temp[2]) +i) +"";
+
+                                //month - day - year
+                                return `${temp[1].slice(-1)}/${temp[2].slice(-1)}/${temp[0]}`; */
+                                return moment([splittedDateFrom[0], parseInt(splittedDateFrom[1])-1, parseInt(splittedDateFrom[2])+i]).format("YYYY/M/D");
+                            })(),
+                            formID,
+                            transportType,
+                            pp
+                        },
+                        success: function(data) {
+                            resolve(data);
+                        }
+                    });
+                }));
+            }
+            
+            Promise.all(promises)
+                .then(results => {
+                    $("#result").html(results[promises.length-1]);
+                })
+        });
+
+        $("#btnSaveExpenses").click(function(e) {
+            $.ajax({
+                url: 'http://localhost:3000/saveExpenses',
+                method: 'POST',
+                data: { cookie, formID },
+                success: function(data) {
+                    $("#result").html(data);
+                }
+            });
+        });
+
+        $("#btnSaveDraft").click(function(e) {
+            $.ajax({
+                url: 'http://localhost:3000/saveDraft',
+                method: 'POST',
+                data: { cookie, formID },
+                success: function(data) {
+                    $("#result").html(data);
+                }
+            });
+        });
+    })
+</script>
+</html>
